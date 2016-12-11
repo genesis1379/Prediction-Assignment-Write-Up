@@ -1,0 +1,108 @@
+---
+title: "Practical Machine Learning Project"
+author: "Jeremy"
+output:
+  html_document:
+    keep_md: yes
+  pdf_document: default
+---
+#1.Introduction
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+<br>
+
+#2.Data Processing
+
+###2.1 Load the relevant libraries and set seed for reproducibility
+
+```{r, warning=F, message=F}
+set.seed(1)
+require(caret)
+require(randomForest)
+```
+
+###2.2 Reading the data
+```{r, cache=TRUE}
+
+training <- read.csv("pml-training.csv", na.strings = c("NA",""))
+testing <- read.csv("pml-testing.csv", na.strings = c("NA",""))
+
+```
+The dataset has approximately 20,000 observations and 160 variables.
+
+###2.3 Data Cleaning
+####2.3.1 Removing NA variables
+Many of the variables have more than 95% NA values so we will get rid of them, this will allow us to work with a complete set of data that is more reliable.
+
+```{r}
+train_data <- training[,colSums(is.na(training)) == 0]
+test_data<- testing[,colSums(is.na(testing)) == 0]
+```
+####2.3.2 Removing unrelated variables
+On second glance, the data suggests that first 7 variables are unrelated to the dataset hence we will remove them, this left us with 53 variables.
+
+```{r}
+head(train_data[,1:10])
+```
+
+```{r}
+train_data <- train_data[, -c(1:7)]
+test_data <- test_data[, -c(1:7)]
+```
+
+###2.4 Data Partition
+
+We need to partition the training data further into training and validation set, usually in 70%:30% split, this allows us to train and optimise our model.
+
+```{r}
+inTrain <- createDataPartition(train_data$classe, p = 0.7, list = FALSE)
+train <- train_data[inTrain, ]
+valid <- train_data[-inTrain, ]
+
+```
+
+<br>
+
+
+#3 Prediction Model
+
+###3.1 Modelling approach
+
+We have adopted the Random Forest approach as the author of the course advocates that it is the most used and accurate algorithm. We have also chosen the k-fold cross validation, and instead of using the default k=10 in the trainControl function, we set it to k=5 to cut down the computing processing time.
+
+```{r, cache=TRUE}
+Control <- trainControl(method = "cv", number = 5)
+fit <- train(classe ~.,data = train, method="rf", trControl = Control)
+print(fit$finalModel)
+```
+
+The output above shows that out-of-bag error rate is 0.7%, this implies that our out-of-sample error would be similar. Note the output suggests a very promising model with high accuracy.
+
+<br>
+
+###3.2 Cross validation and Out-of-Sample Error Rate
+
+This section calculates the actual out-of-sample error rate on the validation data set, using the random forest model built previously.
+
+```{r}
+result <- predict(fit, valid)
+confusionMatrix(result, valid$classe)
+```
+
+This output above shows a very good model with out-of-sample accuracy of 99.2%, implying an estimated out-of-sample error rate of 0.8%. We are comfortable with the the random forest model and will not explore any other approaches.
+
+<br>
+
+#4 Prediction on testing dataset
+
+We now use the random forests model to predict the outcome variable classe for the testing dataset.
+```{r}
+(predict(fit, test_data))
+```
+
+This model predicted the 20 test cases with 100% accuracy from the Course Project Prediction Quiz, hence this concludes the assignment.
+
+<br>
